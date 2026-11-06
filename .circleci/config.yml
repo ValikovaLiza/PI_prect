@@ -12,7 +12,7 @@ jobs:
           command: |
             pip install -r requirements.txt
             mkdir -p public
-            python - <<'PY'
+            python - \<<'PY'
             from pathlib import Path
             from app import app
 
