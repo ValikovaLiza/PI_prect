@@ -1,0 +1,47 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+    }
+
+    triggers {
+        githubPush()
+    }
+
+    environment {
+        IMAGE = 'YOUR_DOCKERHUB_LOGIN/ci-demo'
+    }
+
+    stages {
+        stage('Build image') {
+            steps {
+                sh 'docker build -t "$IMAGE:$BUILD_NUMBER" -t "$IMAGE:latest" .'
+            }
+        }
+
+        stage('Push image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set -eu
+                        export DOCKER_CONFIG="$WORKSPACE/.docker-ci"
+                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+
+                        printf '%s' "$DOCKER_TOKEN" |
+                          docker login -u "$DOCKER_USER" --password-stdin
+
+                        docker push "$IMAGE:$BUILD_NUMBER"
+                        docker push "$IMAGE:latest"
+                    '''
+                }
+            }
+        }
+    }
+}
