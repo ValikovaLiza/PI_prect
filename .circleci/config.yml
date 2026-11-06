@@ -1,0 +1,48 @@
+version: 2.1
+
+jobs:
+  deploy:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+
+      - run:
+          name: Build page
+          command: |
+            pip install -r requirements.txt
+            mkdir -p public
+            python - <<'PY'
+            from pathlib import Path
+            from app import app
+
+            response = app.test_client().get("/")
+            assert response.status_code == 200
+            Path("public/index.html").write_bytes(response.data)
+            PY
+            touch public/.nojekyll
+
+      - run:
+          name: Deploy to GitHub Pages
+          command: |
+            umask 077
+            printf "machine github.com\nlogin x-access-token\npassword %s\n" \
+              "$GH_TOKEN" > ~/.netrc
+
+            cd public
+            git init -b gh-pages
+            git config user.name "CircleCI"
+            git config user.email "ci@example.com"
+            git add .
+            git commit -m "Deploy"
+            git push --force \
+              https://github.com/ValikovaLiza/PI_prect.git \
+              gh-pages
+
+workflows:
+  deploy:
+    jobs:
+      - deploy:
+          filters:
+            branches:
+              only: third
